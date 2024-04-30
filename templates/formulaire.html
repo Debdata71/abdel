@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prediction de Match</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            text-align: center;
+        }
+        form {
+            margin-top: 20px;
+        }
+        label {
+            font-weight: bold;
+        }
+        select, input[type="submit"] {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        input[type="submit"] {
+            background-color: #007bff;
+            color: #fff;
+            cursor: pointer;
+        }
+        input[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+        .error-message {
+            color: red;
+            font-size: 0.9em;
+        }
+        .prediction-box {
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Prediction de Match</h2>
+        <form id="prediction-form" action="/predict" method="post">
+            <label for="journee">Journée:</label>
+            <select id="journee" name="Journée">
+                {% for jour in jours %}
+                <option value="{{ jour }}">{{ jour }}</option>
+                {% endfor %}
+            </select>
+            <label for="match">Match:</label>
+            <select id="match" name="Match">
+                <!-- Options de match chargées par JavaScript -->
+            </select>
+            <input type="hidden" id="homeTeam" name="HomeTeam">
+            <input type="hidden" id="awayTeam" name="AwayTeam">
+            <input type="submit" value="Prédire">
+            <div id="error-message" class="error-message" style="display: none;"></div>
+        </form>
+        <div id="prediction-result" class="prediction-box">
+            <h3>Résultat de la prédiction</h3>
+            <div id="prediction-content"></div>
+            <a href="/" class="back-button">Retour</a>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const form = document.getElementById('prediction-form');
+            const journeeSelect = document.getElementById('journee');
+            const matchSelect = document.getElementById('match');
+            const homeTeamInput = document.getElementById('homeTeam');
+            const awayTeamInput = document.getElementById('awayTeam');
+            const errorMessage = document.getElementById('error-message');
+            const predictionBox = document.getElementById('prediction-result');
+            const predictionContent = document.getElementById('prediction-content');
+
+            // Fonction pour charger et afficher les matchs d'une journée spécifique
+            function loadMatches(jour) {
+                fetch(`/get_matches/${jour}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        matchSelect.innerHTML = ''; // Vider les options existantes pour les matchs
+                        data.forEach(match => {
+                            const option = document.createElement('option');
+                            option.value = match.HomeTeam + " vs " + match.AwayTeam;
+                            option.textContent = match.HomeTeam + " vs " + match.AwayTeam;
+                            matchSelect.appendChild(option);
+                        });
+                        if (data.length > 0) {
+                            // Mise à jour des champs cachés pour le premier match chargé
+                            updateTeamNames(data[0].HomeTeam, data[0].AwayTeam);
+                        }
+                    }).catch(error => {
+                        console.error('Error:', error);
+                    });
+            }
+
+            // Mise à jour des noms des équipes dans les champs cachés
+            function updateTeamNames(homeTeam, awayTeam) {
+                homeTeamInput.value = homeTeam;
+                awayTeamInput.value = awayTeam;
+            }
+
+            // Validation du formulaire côté client
+            form.addEventListener('submit', function(event) {
+                if (!homeTeamInput.value || !awayTeamInput.value) {
+                    event.preventDefault(); // Empêcher la soumission du formulaire
+                    errorMessage.textContent = "Veuillez sélectionner un match.";
+                    errorMessage.style.display = 'block';
+                } else {
+                    errorMessage.style.display = 'none';
+                }
+            });
+
+            // Gestionnaire pour le changement de la journée
+            journeeSelect.addEventListener('change', function() {
+                loadMatches(this.value);
+            });
+
+            // Gestionnaire pour le changement de match sélectionné
+            matchSelect.addEventListener('change', function() {
+                const teams = this.value.split(" vs ");
+                updateTeamNames(teams[0], teams[1]);
+            });
+
+            // Soumettre le formulaire et afficher la prédiction
+            form.addEventListener('submit', function(event) {
+                event.preventDefault(); // Empêcher la soumission normale du formulaire
+                fetch('/predict', {
+                    method: 'POST',
+                    body: new FormData(form)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Afficher la prédiction dans la zone de prédiction
+                    predictionContent.textContent = data.prediction;
+                    predictionBox.style.display = 'block'; // Afficher la boîte de prédiction
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            });
+
+            // Gestionnaire pour le bouton de retour
+            document.querySelector('.back-button').addEventListener('click', function(event) {
+                event.preventDefault(); // Empêcher le comportement par défaut du lien
+                predictionBox.style.display = 'none'; // Cacher la boîte de prédiction
+            });
+
+            // Chargement initial des matchs pour la journée sélectionnée au démarrage
+            if (journeeSelect.value) {
+                loadMatches(journeeSelect.value);
+            }
+        });
+    </script>
+</body>
+</html>

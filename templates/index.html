@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Predict Match</title>
+</head>
+<body>
+    <h1>Prédiction de match</h1>
+    <form id="predictForm">
+        <label for="home_team">Équipe à domicile:</label>
+        <input type="text" id="home_team" name="home_team" required>
+        <label for="away_team">Équipe visiteuse:</label>
+        <input type="text" id="away_team" name="away_team" required>
+        <button type="submit">Prédire</button>
+    </form>
+    <h2>Résultat:</h2>
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('predictForm').onsubmit = async function(event) {
+            event.preventDefault();
+            const home_team = document.getElementById('home_team').value;
+            const away_team = document.getElementById('away_team').value;
+            const response = await fetch('http://127.0.0.1:8000/predict', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({home_team, away_team})
+            });
+            const data = await response.json();
+            document.getElementById('result').textContent = 'Prédiction: ' + data.prediction;
+        };
+    </script>
+</body>
+</html>
